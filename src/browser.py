@@ -1,26 +1,27 @@
 import socket
+import sys
+import ssl
 
 
 class URL:
     """
     Class: URL.
 
-    This class deals with the parsing of a URL string given as an argument.
+    This class deals with the parsing of a URL string given as an argument, and initiating the request.
 
     Attributes:
         url (str): Given as only argument to Class.
-        scheme (str): Extracts the scheme from the URL string (e.g. 'http')
-        host (str): Extracts the host from the URL string (e.g. example.org)
-        path (str): Extracts the path from the URL string (e.g. /index.html)
+        scheme (str): Extracts the scheme from the URL string (e.g. 'http').
+        host (str): Extracts the host from the URL string (e.g. example.org).
+        path (str): Extracts the path from the URL string (e.g. /index.html).
+        port (int): Sets port number depending on HTTP/HTTPS scheme provided.
 
     Methods:
         request: Creates a socket connection and sends the request.
-        show: Prints the HTML content.
 
     Example:
         >>> url = URL("http://example.org")
         >>> url.request()
-        >>> url.show()
     """
 
     def __init__(self, url):
@@ -31,9 +32,15 @@ class URL:
             url (str): Given as only argument to Class.
         """
 
-        # Seperate scheme (http) from url
+        # Seperate scheme (http/https) from url
         self.scheme, url = url.split("://", 1)
-        assert self.scheme == "http"
+        assert self.scheme in ["http", "https"]
+
+        # Set correct port number depending on HTTP/HTTPS scheme provided
+        if self.scheme == "http":
+            self.port = 80
+        elif self.scheme == "https":
+            self.port = 443
 
         # Separate host and path
         if "/" not in url:
@@ -42,14 +49,24 @@ class URL:
         self.host, url = url.split("/", 1)
         self.path = "/" + url
 
+        # Deal with any custom port numbers given in the URL request
+        if ":" in self.host:
+            self.host, port = self.host.split(":", 1)
+            self.port = int(port)
+
     def request(self):
-        # Create socket
+        # Create socket & wrap in SSL
         request_socket = socket.socket(
             family=socket.AF_INET, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP
         )
 
         # Create socket connection
-        request_socket.connect((self.host, 80))
+        request_socket.connect((self.host, self.port))
+
+        # Wrap socket in SSL if HTTPS scheme requested
+        if self.scheme == "https":
+            ctx = ssl.create_default_context()
+            request_socket = ctx.wrap_socket(request_socket, server_hostname=self.host)
 
         # Send the request through the socket as per HTTP/1.0 Protocol incl. two newlines at end of request
         request_socket.send(
@@ -91,26 +108,24 @@ class URL:
 
         return body
 
-    # Show the HTML content
-    def show(self, body):
-        in_tag = False
 
-        for char in body:
-            if char == "<":
-                in_tag = True
-            elif char == ">":
-                in_tag = False
-            elif not in_tag:
-                print(char, end="")
+def show(body):
+    in_tag = False
+
+    for char in body:
+        if char == "<":
+            in_tag = True
+        elif char == ">":
+            in_tag = False
+        elif not in_tag:
+            print(char, end="")
 
 
 def load(url):
     body = url.request()
-    url.show(body)
+    show(body)
 
 
 if __name__ == "__main__":
-    import sys
-
     url = URL(sys.argv[1])
     load(url)
