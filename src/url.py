@@ -15,10 +15,12 @@ class URL:
 
     Methods:
         request: Creates a socket connection and sends the request.
+        show: Prints the HTML content.
 
     Example:
         >>> url = URL("http://example.org")
         >>> url.request()
+        >>> url.show()
     """
 
     def __init__(self, url):
@@ -89,6 +91,26 @@ class URL:
 
         return body
 
+    # Show the HTML content
+    def show(self, body):
+        in_tag = False
 
-url = URL("http://example.org")
-url.request()
+        for char in body:
+            if char == "<":
+                in_tag = True
+            elif char == ">":
+                in_tag = False
+            elif not in_tag:
+                print(char, end="")
+
+
+def load(url):
+    body = url.request()
+    url.show(body)
+
+
+if __name__ == "__main__":
+    import sys
+
+    url = URL(sys.argv[1])
+    load(url)
