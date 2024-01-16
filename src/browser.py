@@ -54,6 +54,10 @@ class URL:
             self.host, port = self.host.split(":", 1)
             self.port = int(port)
 
+        # Set HTTP Headers
+        self.connection = "close"
+        self.user_agent = "Voyager/0.1 (X11; Linux x86_64)"
+
     def request(self):
         # Create socket & wrap in SSL
         request_socket = socket.socket(
@@ -71,8 +75,10 @@ class URL:
         # Send the request through the socket as per HTTP/1.0 Protocol incl. two newlines at end of request
         request_socket.send(
             (
-                "GET {} HTTP/1.0\r\n".format(self.path)
-                + "Host: {}\r\n\r\n".format(self.host)
+                "GET {} HTTP/1.1\r\n".format(self.path)
+                + "Host: {}\r\n".format(self.host)
+                + "Connection: {}\r\n".format(self.connection)
+                + "User-Agent: {}\r\n\r\n".format(self.user_agent)
             ).encode("utf8")
         )
 
