@@ -3,7 +3,7 @@ import sys
 import ssl
 
 
-class URL:
+class Browser:
     """
     Class: URL.
 
@@ -133,5 +133,5 @@ def load(url):
 
 
 if __name__ == "__main__":
-    url = URL(sys.argv[1])
+    url = Browser(sys.argv[1])
     load(url)
