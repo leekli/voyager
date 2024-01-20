@@ -1,6 +1,7 @@
 import socket
 import sys
 import ssl
+import subprocess
 
 
 class Browser:
@@ -34,7 +35,7 @@ class Browser:
 
         # Seperate scheme (http/https) from url
         self.scheme, url = url.split("://", 1)
-        assert self.scheme in ["http", "https"]
+        assert self.scheme in ["http", "https", "file"]
 
         # Set correct port number depending on HTTP/HTTPS scheme provided
         if self.scheme == "http":
@@ -114,8 +115,24 @@ class Browser:
 
         return body
 
+    def file_uri_open(self):
+        # Gets the file path
+        file_path = url.path
 
-def show(body):
+        # If not file path given, a default HTML file loads locally.
+        if file_path == "" or file_path == "/":
+            try:
+                subprocess.run(["open", "./var/fileUrlDefault.html"])
+            except:
+                print("There was an error.")
+        else:
+            try:
+                subprocess.run(["open", f"{file_path}"])
+            except:
+                print("There was an error.")
+
+
+def show_html(body):
     in_tag = False
 
     for char in body:
@@ -128,8 +145,12 @@ def show(body):
 
 
 def load(url):
-    body = url.request()
-    show(body)
+    if url.scheme == "http" or url.scheme == "https":
+        body = url.request()
+        show_html(body)
+
+    if url.scheme == "file":
+        url.file_uri_open()
 
 
 if __name__ == "__main__":
