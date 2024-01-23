@@ -2,27 +2,22 @@ import socket
 import sys
 import ssl
 import subprocess
+import tkinter
+
+# Browser Constants
+WIDTH, HEIGHT = 800, 600
+HSTEP, VSTEP = 13, 18
 
 
-class Browser:
+class URL:
     """
-    Class: URL.
+    Class: URL
 
     This class deals with the parsing of a URL string given as an argument, and initiating the request.
 
-    Attributes:
-        url (str): Given as only argument to Class.
-        scheme (str): Extracts the scheme from the URL string (e.g. 'http').
-        host (str): Extracts the host from the URL string (e.g. example.org).
-        path (str): Extracts the path from the URL string (e.g. /index.html).
-        port (int): Sets port number depending on HTTP/HTTPS scheme provided.
-
     Methods:
         request: Creates a socket connection and sends the request.
-
-    Example:
-        >>> url = URL("http://example.org")
-        >>> url.request()
+        file_uri_open: Opens a file in line with file schema.
     """
 
     def __init__(self, url):
@@ -30,10 +25,10 @@ class Browser:
         The constructor for URL Class.
 
         Parameters:
-            url (str): Given as only argument to Class.
+            url (str): Given as only argument.
         """
 
-        # Seperate scheme (http/https) from url
+        # Separate scheme (http/https/file) from url
         self.scheme, url = url.split("://", 1)
         assert self.scheme in ["http", "https", "file"]
 
@@ -43,7 +38,7 @@ class Browser:
         elif self.scheme == "https":
             self.port = 443
 
-        # Separate host and path
+        # Separate host and path (add trailing / if no path)
         if "/" not in url:
             url = url + "/"
 
@@ -91,7 +86,6 @@ class Browser:
         version, status_code, status_reason = status_line.split(" ", 2)
 
         # Extract the Response Headers and Collect into a Dictionary
-        # Ensure 'transfer-encoding' & 'content-encoding' are not in Response Headers
         response_headers = {}
 
         while True:
@@ -104,9 +98,6 @@ class Browser:
             header, value = current_line.split(":", 1)
             response_headers[header.lower()] = value.strip()
 
-        assert "transfer-encoding" not in response_headers
-        assert "content-encoding" not in response_headers
-
         # Extract the rest of the 'body' (html)
         body = response.read()
 
@@ -115,7 +106,7 @@ class Browser:
 
         return body
 
-    def file_uri_open(self):
+    def file_uri_open(self, url):
         # Gets the file path
         file_path = url.path
 
@@ -124,15 +115,72 @@ class Browser:
             try:
                 subprocess.run(["open", "./var/fileUrlDefault.html"])
             except:
-                print("There was an error.")
+                print("There was an error opening the file.")
         else:
             try:
                 subprocess.run(["open", f"{file_path}"])
             except:
-                print("There was an error.")
+                print("There was an error opening the file.")
+
+        return None
 
 
-def show_html(body):
+class Browser:
+    """
+    Class: Browser
+
+    This class deals with creating the Browser GUI Window & Canvas, and drawing the text to the screen.
+
+    Methods:
+        load: Depending on the scheme used, it will initate the request, parse the text and draw it to the screen. If file URI then it will open the file path.
+        draw: Draws the text from self.display_list to the screen, handles the x/y co-ordinates of the screen.
+        scrolldown: Handles the user event 'scroll down' and re-drawing the screen in line with new text positions.
+    """
+
+    def __init__(self):
+        # Initalise Tk window
+        self.scroll = 0
+        self.window = tkinter.Tk()
+        self.canvas = tkinter.Canvas(self.window, width=WIDTH, height=HEIGHT)
+        self.window.title("🚀 Voyager")
+        self.canvas.pack()
+        self.window.bind("<Down>", self.scrolldown)
+
+    def load(self, url):
+        # Deals with loading the content depending on scheme supplied.
+        # Supported schemes: HTTTP, HTTPS, File
+
+        if url.scheme == "http" or url.scheme == "https":
+            body = url.request()
+            text = lex(body)
+            self.display_list = layout(text)
+            self.draw()
+
+        if url.scheme == "file":
+            url.file_uri_open(url)
+
+    def draw(self):
+        # On each re-draw, clear the current content and re-render based on x and y co-ordinates.
+        self.canvas.delete("all")
+
+        for x, y, char in self.display_list:
+            if y > self.scroll + HEIGHT:
+                continue
+            if y + VSTEP < self.scroll:
+                continue
+            self.canvas.create_text(x, y - self.scroll, text=char)
+
+    SCROLL_STEP = 100
+
+    def scrolldown(self, event):
+        # Handle the user clicking scroll down, adjust the scroll step and re-draw the screen
+        self.scroll += self.SCROLL_STEP
+        self.draw()
+
+
+def lex(body):
+    # Parses the response body, removing opening and closing tags <> and returning the remaining text content.
+    text = ""
     in_tag = False
 
     for char in body:
@@ -141,18 +189,26 @@ def show_html(body):
         elif char == ">":
             in_tag = False
         elif not in_tag:
-            print(char, end="")
+            text += char
+
+    return text
 
 
-def load(url):
-    if url.scheme == "http" or url.scheme == "https":
-        body = url.request()
-        show_html(body)
+def layout(text):
+    display_list = []
+    cursor_x, cursor_y = HSTEP, VSTEP
 
-    if url.scheme == "file":
-        url.file_uri_open()
+    for char in text:
+        display_list.append((cursor_x, cursor_y, char))
+        cursor_x += HSTEP
+
+        if cursor_x >= WIDTH - HSTEP:
+            cursor_y += VSTEP
+            cursor_x = HSTEP
+
+    return display_list
 
 
 if __name__ == "__main__":
-    url = Browser(sys.argv[1])
-    load(url)
+    Browser().load(URL(sys.argv[1]))
+    tkinter.mainloop()
