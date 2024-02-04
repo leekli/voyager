@@ -17,5 +17,7 @@ Supports the following URI Schemes:
 In the command line:
 
 ```zsh
-> python3 src/browser.py <link>
+> python3 src/main.py <link>
 ```
+
+Application entry point is `src/main.py`
