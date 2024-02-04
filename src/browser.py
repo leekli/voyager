@@ -52,7 +52,7 @@ class Browser:
 
     SCROLL_STEP = 100
 
-    def scrolldown(self):
+    def scrolldown(self, event):
         # Handle the user clicking scroll down, adjust the scroll step and re-draw the screen
         self.scroll += self.SCROLL_STEP
         self.draw()
@@ -70,6 +70,14 @@ def lex(body):
             in_tag = False
         elif not in_tag:
             text += char
+
+    # HTML Entity Support
+    # - Currently supports: Less than (&lt;), Greater than (&gt;)
+    if "&lt;" in text:
+        text = text.replace("&lt;", "<")
+
+    if "&gt;" in text:
+        text = text.replace("&gt;", ">")
 
     return text
 
